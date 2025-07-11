@@ -45,14 +45,18 @@
       margin-bottom: 2rem;
     }
 
-    .division-label {
-      text-align: center;
-      margin-top: 1rem;
-      margin-bottom: 0.3rem;
+    .division-heading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 1.1rem;
+      margin-bottom: 0.5rem;
     }
 
-    .division-label img {
+    .division-heading img {
       height: 24px;
+      margin-left: 0.5rem;
     }
 
     .team-grid {
@@ -193,36 +197,15 @@
     const divisions = {
       "World East": {
         logo: "https://res.cloudinary.com/de4q4iitx/image/upload/v1752231585/world-east_dzwpw9.png",
-        teams: [
-          "Australia Whites",
-          "Italia Bulls",
-          "Belarus Barbarians",
-          "Singapore Smelters",
-          "South Korea Deers",
-          "Poland Panthers"
-        ]
+        teams: ["Australia Whites", "Italia Bulls", "Belarus Barbarians", "Singapore Smelters", "South Korea Deers", "Poland Panthers"]
       },
       "World Central": {
         logo: "https://res.cloudinary.com/de4q4iitx/image/upload/v1752231585/world-central_okus8o.png",
-        teams: [
-          "Germany Cavaliers",
-          "UK 3 Lions",
-          "Finland Frigates",
-          "Belgium Bulldogs",
-          "Holland Hornets",
-          "South Africa Silverbacks"
-        ]
+        teams: ["Germany Cavaliers", "UK 3 Lions", "Finland Frigates", "Belgium Bulldogs", "Holland Hornets", "South Africa Silverbacks"]
       },
       "World West": {
         logo: "https://res.cloudinary.com/de4q4iitx/image/upload/v1752231585/world-west_ie8gga.png",
-        teams: [
-          "USA Drones",
-          "Jamaica Thunder",
-          "Rwanda Raiders",
-          "Egypt Pharaohs",
-          "Peru Piranhas",
-          "Brazil Hummingbirds"
-        ]
+        teams: ["USA Drones", "Jamaica Thunder", "Rwanda Raiders", "Egypt Pharaohs", "Peru Piranhas", "Brazil Hummingbirds"]
       }
     };
 
@@ -263,7 +246,7 @@
         if (group === 'division') {
           const already = selected.divisions[container];
           if (already && already !== name) {
-            document.querySelector(`[data-team="${already}"]`).classList.remove('selected');
+            document.querySelector(`[data-team="${already}"]`)?.classList.remove('selected');
           }
           selected.divisions[container] = name;
           card.classList.add('selected');
@@ -271,8 +254,8 @@
           // Grey out others in this division
           divisions[container].teams.forEach(team => {
             const el = document.querySelector(`[data-team="${team}"]`);
-            if (team !== name) el.classList.add('greyed');
-            else el.classList.remove('greyed');
+            if (team !== name) el?.classList.add('greyed');
+            else el?.classList.remove('greyed');
           });
 
           renderWildcards(); // Update wildcard pool
@@ -297,7 +280,7 @@
         const div = document.createElement('div');
         div.className = 'division-section';
         div.innerHTML = `
-          <div class="division-label"><img src="${data.logo}" alt="${divName} logo"></div>
+          <div class="division-heading">${divName} <img src="${data.logo}" alt="${divName} logo"></div>
           <div class="team-grid" id="${divName}"></div>
         `;
         section.appendChild(div);
@@ -323,7 +306,7 @@
 
       document.getElementById('stage1').style.display = 'none';
       document.getElementById('stage2').style.display = 'block';
-      // Basic bracket rendering to be replaced later
+
       const qf = document.getElementById("quarterfinals");
       teams.forEach(team => {
         const div = document.createElement("div");
@@ -340,5 +323,6 @@
   </script>
 </body>
 </html>
+
 
 
