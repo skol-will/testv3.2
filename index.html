@@ -3,79 +3,77 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Fantasy Playoff Predictor</title>
+  <title>Fantasy Bracket</title>
   <style>
     body {
-      font-family: 'Segoe UI', sans-serif;
-      margin: 0;
-      padding: 1rem;
+      font-family: Arial, sans-serif;
       background: #121212;
       color: white;
+      margin: 0;
+      padding: 1rem;
     }
 
-    h1, h2 {
+    h1 {
       text-align: center;
-      margin-bottom: 1rem;
-    }
-
-    .stage {
-      max-width: 800px;
-      margin: auto;
-    }
-
-    .button {
-      display: block;
-      margin: 2rem auto;
-      padding: 0.8rem 1.5rem;
-      background: #007bff;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      font-size: 1rem;
-      cursor: pointer;
     }
 
     .bracket {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 1rem;
-      margin-top: 2rem;
+      max-width: 1000px;
+      margin: auto;
+      padding-top: 2rem;
     }
 
     .round {
-      background: #1f1f1f;
-      padding: 0.5rem;
-      border-radius: 6px;
-      min-height: 300px;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
     }
 
     .round h3 {
       text-align: center;
-      margin-top: 0;
+      margin-bottom: 1rem;
     }
 
     .matchup {
-      background: #2a2a2a;
-      margin: 0.5rem 0;
+      background: #1f1f1f;
+      border: 2px solid #333;
+      border-radius: 8px;
       padding: 0.5rem;
-      border-radius: 5px;
+    }
+
+    .team {
+      padding: 0.5rem;
       text-align: center;
       cursor: pointer;
+      border-radius: 4px;
+      margin: 0.2rem 0;
+      background: #2a2a2a;
       transition: 0.2s ease;
     }
 
-    .matchup:hover {
+    .team:hover {
       background: #444;
     }
 
-    .selected {
-      background: #007bff !important;
+    .team.selected {
+      background: #007bff;
       color: white;
     }
 
-    .disabled {
+    .team.disabled {
       opacity: 0.4;
       pointer-events: none;
+    }
+
+    .champion-display {
+      margin-top: 1rem;
+      text-align: center;
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #00ffcc;
     }
 
     @media (max-width: 600px) {
@@ -88,93 +86,95 @@
 </head>
 <body>
 
-  <div class="stage" id="stage1">
-    <h1>Fantasy Playoff Predictor</h1>
-    <h2>Select 8 Teams</h2>
-    <p style="text-align:center;">(For testing, here are 8 preset teams)</p>
-    <div id="selectedTeams" style="text-align:center; margin-bottom: 1rem;">
-      <strong>Australia Whites</strong>, Italia Bulls, UK 3 Lions, USA Drones, Jamaica Thunder, Singapore Smelters, Brazil Hummingbirds, South Korea Deers
-    </div>
-    <button class="button" onclick="startBracket()">Continue to Bracket</button>
+<h1>Fantasy Playoff Bracket</h1>
+
+<div class="bracket">
+  <div class="round" id="quarterfinals">
+    <h3>Quarterfinals</h3>
   </div>
-
-  <div class="stage" id="stage2" style="display:none;">
-    <h1>Playoff Bracket</h1>
-    <div class="bracket">
-      <div class="round" id="quarterfinals"><h3>Quarterfinals</h3></div>
-      <div class="round" id="semifinals"><h3>Semifinals</h3></div>
-      <div class="round" id="final"><h3>Final</h3></div>
-      <div class="round" id="champion"><h3>Champion</h3><div id="championWinner" style="text-align:center; margin-top:1rem;"></div></div>
-    </div>
+  <div class="round" id="semifinals">
+    <h3>Semifinals</h3>
   </div>
+  <div class="round" id="final">
+    <h3>Final</h3>
+  </div>
+  <div class="round" id="champion">
+    <h3>Champion</h3>
+    <div class="champion-display" id="championDisplay"></div>
+  </div>
+</div>
 
-  <script>
-    const quarterfinals = [
-      ["Australia Whites", "Italia Bulls"],
-      ["UK 3 Lions", "USA Drones"],
-      ["Jamaica Thunder", "Singapore Smelters"],
-      ["Brazil Hummingbirds", "South Korea Deers"]
-    ];
+<script>
+  const quarterMatchups = [
+    ["Australia Whites", "Italia Bulls"],
+    ["UK 3 Lions", "USA Drones"],
+    ["Jamaica Thunder", "Singapore Smelters"],
+    ["Brazil Hummingbirds", "South Korea Deers"]
+  ];
 
-    const picks = {
-      quarterfinals: [],
-      semifinals: [],
-      final: [],
-      champion: null
-    };
+  const state = {
+    semifinals: [],
+    final: [],
+    champion: null
+  };
 
-    function startBracket() {
-      document.getElementById('stage1').style.display = 'none';
-      document.getElementById('stage2').style.display = 'block';
-      renderRound("quarterfinals", quarterfinals);
-    }
+  function createTeamElement(name, onClick) {
+    const div = document.createElement("div");
+    div.className = "team";
+    div.textContent = name;
+    div.addEventListener("click", () => onClick(div, name));
+    return div;
+  }
 
-    function renderRound(round, matchups) {
-      const container = document.getElementById(round);
-      container.innerHTML = `<h3>${round.charAt(0).toUpperCase() + round.slice(1)}</h3>`;
-      matchups.forEach((match, i) => {
-        match.forEach(team => {
-          const div = document.createElement("div");
-          div.className = "matchup";
-          div.textContent = team;
-          div.addEventListener("click", () => handleSelection(round, i, team));
-          container.appendChild(div);
+  function renderMatchups(containerId, matchups, nextStage, nextContainerId) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = `<h3>${containerId.charAt(0).toUpperCase() + containerId.slice(1)}</h3>`;
+
+    matchups.forEach((pair, index) => {
+      const matchupBox = document.createElement("div");
+      matchupBox.className = "matchup";
+
+      pair.forEach((teamName, i) => {
+        const teamDiv = createTeamElement(teamName, (element, name) => {
+          // Disable both options
+          [...matchupBox.children].forEach(child => {
+            child.classList.remove("selected");
+            child.classList.add("disabled");
+          });
+
+          // Highlight selected team
+          element.classList.add("selected");
+
+          // Send to next stage
+          if (!state[nextStage]) state[nextStage] = [];
+          state[nextStage].push(name);
+
+          if (state[nextStage].length % 2 === 0 || nextStage === "champion") {
+            const nextMatchups = [];
+
+            for (let i = 0; i < state[nextStage].length; i += 2) {
+              const pair = [state[nextStage][i], state[nextStage][i+1]];
+              if (pair[1]) nextMatchups.push(pair);
+            }
+
+            if (nextStage === "champion") {
+              document.getElementById("championDisplay").textContent = name;
+            } else {
+              renderMatchups(nextContainerId, nextMatchups, nextStage === "semifinals" ? "final" : "champion", 
+                             nextStage === "semifinals" ? "final" : "champion");
+            }
+          }
         });
+
+        matchupBox.appendChild(teamDiv);
       });
-    }
 
-    function handleSelection(round, matchIndex, team) {
-      const nextRound = {
-        quarterfinals: "semifinals",
-        semifinals: "final",
-        final: "champion"
-      }[round];
+      container.appendChild(matchupBox);
+    });
+  }
 
-      const nextContainer = document.getElementById(nextRound);
-      const currentRoundContainer = document.getElementById(round);
-
-      // Clear previous selection in this matchup
-      const children = currentRoundContainer.querySelectorAll(".matchup");
-      for (let i = matchIndex * 2; i < matchIndex * 2 + 2; i++) {
-        children[i].classList.remove("selected");
-        children[i].classList.add("disabled");
-      }
-
-      // Highlight selected team
-      children[matchIndex * 2 + (children[matchIndex * 2].textContent === team ? 0 : 1)].classList.add("selected");
-
-      // Place selected team in next round
-      if (nextRound === "champion") {
-        document.getElementById("championWinner").textContent = team;
-      } else {
-        const slot = document.createElement("div");
-        slot.className = "matchup";
-        slot.textContent = team;
-        slot.addEventListener("click", () => handleSelection(nextRound, Math.floor(nextContainer.children.length / 2), team));
-        nextContainer.appendChild(slot);
-      }
-    }
-  </script>
+  renderMatchups("quarterfinals", quarterMatchups, "semifinals", "semifinals");
+</script>
 
 </body>
 </html>
