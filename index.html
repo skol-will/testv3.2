@@ -149,7 +149,6 @@ function renderStage1() {
     teams.forEach(team => {
       const card = createTeamCard(team, teamGrid, (t, el) => {
         selectedDivisionWinners[divisionName] = t;
-        // Reset group visuals
         Array.from(teamGrid.children).forEach(c => {
           c.classList.remove("selected");
           c.classList.remove("disabled");
@@ -206,11 +205,12 @@ function createBracket(teams) {
   const qf = document.getElementById("quarterfinals");
   const sf = document.getElementById("semifinals");
   const f = document.getElementById("final");
+  const champ = document.getElementById("champion-display");
 
   qf.innerHTML = "<h3>Quarterfinals</h3>";
   sf.innerHTML = "<h3>Semifinals</h3>";
   f.innerHTML = "<h3>Final</h3>";
-  document.getElementById("champion-display").textContent = "";
+  champ.innerHTML = "";
 
   const quarterWinners = [];
 
@@ -236,8 +236,8 @@ function createBracket(teams) {
     winnerDiv.classList.add("selected");
     winnerDiv.classList.remove("disabled");
 
-    quarterWinners.push(winner);
-    updateSemifinals();
+    if (!quarterWinners.includes(winner)) quarterWinners.push(winner);
+    if (quarterWinners.length % 2 === 0) updateSemifinals();
   }
 
   function updateSemifinals() {
@@ -266,11 +266,11 @@ function createBracket(teams) {
       winnerDiv.classList.add("selected");
       winnerDiv.classList.remove("disabled");
 
-      semiWinners.push(winner);
-      updateFinals();
+      if (!semiWinners.includes(winner)) semiWinners.push(winner);
+      if (semiWinners.length % 2 === 0) updateFinal(semiWinners);
     }
 
-    function updateFinals() {
+    function updateFinal(semiWinners) {
       f.innerHTML = "<h3>Final</h3>";
       const finalMatchup = document.createElement("div");
       finalMatchup.className = "matchup";
@@ -293,7 +293,7 @@ function createBracket(teams) {
       winnerDiv.classList.add("selected");
       winnerDiv.classList.remove("disabled");
 
-      document.getElementById("champion-display").textContent = winner;
+      champ.textContent = winner;
     }
   }
 }
@@ -310,4 +310,3 @@ renderStage1();
 </script>
 </body>
 </html>
-
