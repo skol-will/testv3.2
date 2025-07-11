@@ -2,270 +2,312 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Fantasy Playoff Predictor</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      margin: 0;
+      background-color: #0e1111;
+      color: white;
       padding: 20px;
-      background: #f4f4f4;
+      max-width: 1000px;
+      margin: auto;
     }
-
     h1, h2 {
       text-align: center;
     }
-
+    .team-card {
+      background: #1f1f1f;
+      padding: 10px 15px;
+      margin: 5px;
+      border-radius: 6px;
+      cursor: pointer;
+      text-align: center;
+      font-weight: bold;
+    }
+    .team-card.selected {
+      background: #007bff;
+    }
+    .team-card.disabled {
+      opacity: 0.3;
+      pointer-events: none;
+    }
     .section {
       margin-bottom: 40px;
     }
-
-    .division {
+    .division-group {
       margin-bottom: 20px;
     }
-
-    .team-list {
+    .team-grid {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    .team {
-      padding: 10px 15px;
-      background: #fff;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-
-    .team.selected {
-      background: #007bff;
-      color: #fff;
-      font-weight: bold;
-    }
-
-    .team.disabled {
-      background: #ddd;
-      color: #999;
-      cursor: not-allowed;
     }
 
     .bracket {
       display: flex;
-      flex-wrap: wrap;
       justify-content: space-around;
-      gap: 10px;
+      flex-wrap: wrap;
     }
 
     .round {
-      flex: 1;
-      min-width: 120px;
-      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
 
     .matchup {
-      margin: 20px 0;
+      background: #1a1a1a;
+      margin: 10px;
       padding: 10px;
-      background: #fff;
-      border: 1px solid #ccc;
+      border-radius: 6px;
+      min-width: 140px;
+    }
+
+    .matchup .team {
       cursor: pointer;
+      padding: 5px;
+      text-align: center;
     }
 
-    .matchup.selected {
-      background: #007bff;
-      color: #fff;
+    .matchup .team.selected {
+      background-color: #007bff;
+    }
+
+    .matchup .team.disabled {
+      opacity: 0.3;
+      pointer-events: none;
+    }
+
+    #champion-display {
+      margin-top: 10px;
+      font-size: 20px;
       font-weight: bold;
-    }
-
-    .matchup.disabled {
-      background: #eee;
-      color: #999;
-    }
-
-    @media screen and (max-width: 600px) {
-      .team-list {
-        flex-direction: column;
-      }
-
-      .bracket {
-        flex-direction: column;
-      }
+      color: gold;
     }
   </style>
 </head>
 <body>
-  <h1>Fantasy Playoff Predictor</h1>
 
-  <div class="section" id="stage1">
-    <h2>1. Choose Division Winners</h2>
-    <div id="division-container"></div>
+<h1>Fantasy Playoff Predictor</h1>
 
-    <h2>2. Choose 5 Wildcards</h2>
-    <div class="team-list" id="wildcard-list"></div>
+<div class="section" id="stage1">
+  <h2>Select Playoff Teams</h2>
+  <div id="divisions"></div>
 
-    <button onclick="startBracket()">Continue to Bracket</button>
-  </div>
+  <h3>Wildcard Picks (Choose 5)</h3>
+  <div class="team-grid" id="wildcards"></div>
 
-  <div class="section" id="stage2" style="display: none;">
-    <h2>Bracket Builder</h2>
-    <div class="bracket">
-      <div class="round" id="quarterfinals"><h3>Quarterfinals</h3></div>
-      <div class="round" id="semifinals"><h3>Semifinals</h3></div>
-      <div class="round" id="final"><h3>Final</h3></div>
-      <div class="round" id="champion"><h3>Champion</h3></div>
+  <button onclick="proceedToBracket()">Continue to Bracket</button>
+</div>
+
+<div class="section" id="stage2" style="display:none;">
+  <h2>Playoff Bracket</h2>
+  <div class="bracket">
+    <div class="round" id="quarterfinals"><h3>Quarterfinals</h3></div>
+    <div class="round" id="semifinals"><h3>Semifinals</h3></div>
+    <div class="round" id="final"><h3>Final</h3></div>
+    <div class="round" id="champion">
+      <h3>Champion</h3>
+      <div id="champion-display"></div>
     </div>
   </div>
+</div>
 
-  <script>
-    const divisions = {
-      "World East": ["Australia Whites", "Italia Bulls", "Belarus Barbarians", "Singapore Smelters", "South Korea Deers", "Poland Panthers"],
-      "World Central": ["Germany Cavaliers", "UK 3 Lions", "Finland Frigates", "Belgium Bulldogs", "Holland Hornets", "South Africa Silverbacks"],
-      "World West": ["USA Drones", "Jamaica Thunder", "Rwanda Raiders", "Egypt Pharaohs", "Peru Piranhas", "Brazil Hummingbirds"]
-    };
+<script>
+const divisions = {
+  "World East": ["Australia Whites", "Italia Bulls", "Belarus Barbarians", "Singapore Smelters", "South Korea Deers", "Poland Panthers"],
+  "World Central": ["Germany Cavaliers", "UK 3 Lions", "Finland Frigates", "Belgium Bulldogs", "Holland Hornets", "South Africa Silverbacks"],
+  "World West": ["USA Drones", "Jamaica Thunder", "Rwanda Raiders", "Egypt Pharaohs", "Peru Piranhas", "Brazil Hummingbirds"]
+};
 
-    let selectedDivisionWinners = {};
-    let selectedWildcards = [];
-    let allTeams = [];
+const selectedDivisionWinners = {};
+const selectedWildcards = new Set();
 
-    function createTeamElement(name, clickHandler, isSelected = false, isDisabled = false) {
-      const div = document.createElement('div');
-      div.className = 'team';
-      if (isSelected) div.classList.add('selected');
-      if (isDisabled) div.classList.add('disabled');
-      div.textContent = name;
-      if (!isDisabled) {
-        div.onclick = () => clickHandler(name, div);
+function createTeamCard(team, container, clickHandler) {
+  const div = document.createElement("div");
+  div.className = "team-card";
+  div.innerText = team;
+  div.onclick = () => clickHandler(team, div);
+  container.appendChild(div);
+  return div;
+}
+
+function renderStage1() {
+  const divWrapper = document.getElementById("divisions");
+  divWrapper.innerHTML = "";
+
+  Object.entries(divisions).forEach(([divisionName, teams]) => {
+    const groupDiv = document.createElement("div");
+    groupDiv.className = "division-group";
+    const header = document.createElement("h3");
+    header.innerText = divisionName;
+    groupDiv.appendChild(header);
+
+    const teamGrid = document.createElement("div");
+    teamGrid.className = "team-grid";
+
+    teams.forEach(team => {
+      const card = createTeamCard(team, teamGrid, (t, el) => {
+        selectedDivisionWinners[divisionName] = t;
+        // Reset group visuals
+        Array.from(teamGrid.children).forEach(c => {
+          c.classList.remove("selected");
+          c.classList.remove("disabled");
+        });
+        el.classList.add("selected");
+        renderWildcards();
+      });
+    });
+
+    groupDiv.appendChild(teamGrid);
+    divWrapper.appendChild(groupDiv);
+  });
+
+  renderWildcards();
+}
+
+function renderWildcards() {
+  const wcGrid = document.getElementById("wildcards");
+  wcGrid.innerHTML = "";
+  selectedWildcards.clear();
+
+  const chosenDivWinners = Object.values(selectedDivisionWinners);
+  const allTeams = Object.values(divisions).flat();
+
+  allTeams.forEach(team => {
+    if (chosenDivWinners.includes(team)) return;
+
+    const card = createTeamCard(team, wcGrid, (t, el) => {
+      if (selectedWildcards.has(t)) {
+        selectedWildcards.delete(t);
+        el.classList.remove("selected");
+      } else if (selectedWildcards.size < 5) {
+        selectedWildcards.add(t);
+        el.classList.add("selected");
       }
-      return div;
+    });
+  });
+}
+
+function proceedToBracket() {
+  if (Object.keys(selectedDivisionWinners).length !== 3 || selectedWildcards.size !== 5) {
+    alert("Please select 3 division winners and 5 wildcards.");
+    return;
+  }
+
+  document.getElementById("stage1").style.display = "none";
+  document.getElementById("stage2").style.display = "block";
+
+  const allTeams = [...Object.values(selectedDivisionWinners), ...selectedWildcards];
+  createBracket(allTeams);
+}
+
+function createBracket(teams) {
+  const qf = document.getElementById("quarterfinals");
+  const sf = document.getElementById("semifinals");
+  const f = document.getElementById("final");
+
+  qf.innerHTML = "<h3>Quarterfinals</h3>";
+  sf.innerHTML = "<h3>Semifinals</h3>";
+  f.innerHTML = "<h3>Final</h3>";
+  document.getElementById("champion-display").textContent = "";
+
+  const quarterWinners = [];
+
+  for (let i = 0; i < teams.length; i += 2) {
+    const matchup = document.createElement("div");
+    matchup.className = "matchup";
+
+    const teamA = createBracketTeam(teams[i], () => handleQuarterfinalWin(teams[i], matchup));
+    const teamB = createBracketTeam(teams[i+1], () => handleQuarterfinalWin(teams[i+1], matchup));
+
+    matchup.appendChild(teamA);
+    matchup.appendChild(teamB);
+    qf.appendChild(matchup);
+  }
+
+  function handleQuarterfinalWin(winner, matchupDiv) {
+    Array.from(matchupDiv.children).forEach(c => {
+      c.classList.remove("selected");
+      c.classList.add("disabled");
+    });
+
+    const winnerDiv = [...matchupDiv.children].find(div => div.textContent === winner);
+    winnerDiv.classList.add("selected");
+    winnerDiv.classList.remove("disabled");
+
+    quarterWinners.push(winner);
+    updateSemifinals();
+  }
+
+  function updateSemifinals() {
+    sf.innerHTML = "<h3>Semifinals</h3>";
+    const semiWinners = [];
+
+    for (let i = 0; i < quarterWinners.length; i += 2) {
+      const matchup = document.createElement("div");
+      matchup.className = "matchup";
+
+      const teamA = createBracketTeam(quarterWinners[i], () => handleSemifinalWin(quarterWinners[i], matchup));
+      const teamB = createBracketTeam(quarterWinners[i+1], () => handleSemifinalWin(quarterWinners[i+1], matchup));
+
+      matchup.appendChild(teamA);
+      matchup.appendChild(teamB);
+      sf.appendChild(matchup);
     }
 
-    function updateStage1UI() {
-      document.getElementById('division-container').innerHTML = '';
-      document.getElementById('wildcard-list').innerHTML = '';
-
-      // Division winners
-      Object.entries(divisions).forEach(([divisionName, teams]) => {
-        const section = document.createElement('div');
-        section.className = 'division';
-        section.innerHTML = `<h3>${divisionName}</h3>`;
-        const list = document.createElement('div');
-        list.className = 'team-list';
-
-        teams.forEach(team => {
-          const selected = selectedDivisionWinners[divisionName] === team;
-          const element = createTeamElement(team, (name, el) => {
-            selectedDivisionWinners[divisionName] = name;
-            updateStage1UI();
-          }, selected);
-          list.appendChild(element);
-        });
-
-        section.appendChild(list);
-        document.getElementById('division-container').appendChild(section);
+    function handleSemifinalWin(winner, matchupDiv) {
+      Array.from(matchupDiv.children).forEach(c => {
+        c.classList.remove("selected");
+        c.classList.add("disabled");
       });
 
-      // Wildcards
-      const selectedWinners = Object.values(selectedDivisionWinners);
-      const wildcardPool = allTeams.filter(t => !selectedWinners.includes(t));
+      const winnerDiv = [...matchupDiv.children].find(div => div.textContent === winner);
+      winnerDiv.classList.add("selected");
+      winnerDiv.classList.remove("disabled");
 
-      wildcardPool.forEach(team => {
-        const selected = selectedWildcards.includes(team);
-        const element = createTeamElement(team, (name, el) => {
-          if (selected) {
-            selectedWildcards = selectedWildcards.filter(t => t !== name);
-          } else if (selectedWildcards.length < 5) {
-            selectedWildcards.push(name);
-          }
-          updateStage1UI();
-        }, selected);
-        document.getElementById('wildcard-list').appendChild(element);
+      semiWinners.push(winner);
+      updateFinals();
+    }
+
+    function updateFinals() {
+      f.innerHTML = "<h3>Final</h3>";
+      const finalMatchup = document.createElement("div");
+      finalMatchup.className = "matchup";
+
+      const teamA = createBracketTeam(semiWinners[0], () => handleFinalWin(semiWinners[0], finalMatchup));
+      const teamB = createBracketTeam(semiWinners[1], () => handleFinalWin(semiWinners[1], finalMatchup));
+
+      finalMatchup.appendChild(teamA);
+      finalMatchup.appendChild(teamB);
+      f.appendChild(finalMatchup);
+    }
+
+    function handleFinalWin(winner, matchupDiv) {
+      Array.from(matchupDiv.children).forEach(c => {
+        c.classList.remove("selected");
+        c.classList.add("disabled");
       });
+
+      const winnerDiv = [...matchupDiv.children].find(div => div.textContent === winner);
+      winnerDiv.classList.add("selected");
+      winnerDiv.classList.remove("disabled");
+
+      document.getElementById("champion-display").textContent = winner;
     }
+  }
+}
 
-    function startBracket() {
-      if (Object.keys(selectedDivisionWinners).length !== 3 || selectedWildcards.length !== 5) {
-        alert("Please pick 3 division winners and 5 wildcards.");
-        return;
-      }
+function createBracketTeam(name, clickHandler) {
+  const div = document.createElement("div");
+  div.className = "team";
+  div.innerText = name;
+  div.onclick = clickHandler;
+  return div;
+}
 
-      const finalEight = [...Object.values(selectedDivisionWinners), ...selectedWildcards];
-      buildBracket(finalEight);
-      document.getElementById('stage1').style.display = 'none';
-      document.getElementById('stage2').style.display = 'block';
-    }
-
-    let bracketData = {
-      quarterfinals: [],
-      semifinals: [],
-      final: [],
-      champion: ""
-    };
-
-    function buildBracket(teams) {
-      bracketData.quarterfinals = teams;
-      renderRound("quarterfinals", teams, "semifinals");
-    }
-
-    function renderRound(stageId, teams, nextStageId) {
-      const container = document.getElementById(stageId);
-      container.innerHTML = `<h3>${stageId.charAt(0).toUpperCase() + stageId.slice(1)}</h3>`;
-
-      const matchups = [];
-      for (let i = 0; i < teams.length; i += 2) {
-        const teamA = teams[i];
-        const teamB = teams[i + 1];
-
-        const matchDiv = document.createElement('div');
-        matchDiv.className = 'matchup';
-
-        const a = createTeamElement(teamA, () => {
-          bracketData[nextStageId][Math.floor(i / 2)] = teamA;
-          renderRound(nextStageId, bracketData[nextStageId], nextStageId === 'final' ? 'champion' : 'final');
-        });
-        const b = createTeamElement(teamB, () => {
-          bracketData[nextStageId][Math.floor(i / 2)] = teamB;
-          renderRound(nextStageId, bracketData[nextStageId], nextStageId === 'final' ? 'champion' : 'final');
-        });
-
-        matchDiv.appendChild(a);
-        matchDiv.appendChild(b);
-        container.appendChild(matchDiv);
-
-        matchups.push([teamA, teamB]);
-      }
-
-      // Reset lower stages
-      if (nextStageId === 'semifinals') bracketData.semifinals = Array(4).fill("");
-      if (nextStageId === 'final') bracketData.final = Array(2).fill("");
-      if (nextStageId === 'champion') {
-        renderChampion();
-      }
-    }
-
-    function renderChampion() {
-      const finalTeams = bracketData.final;
-      const container = document.getElementById("champion");
-      container.innerHTML = "<h3>Champion</h3>";
-
-      if (finalTeams.length !== 2 || !finalTeams[0] || !finalTeams[1]) return;
-
-      const a = createTeamElement(finalTeams[0], () => {
-        bracketData.champion = finalTeams[0];
-        renderChampion();
-      }, bracketData.champion === finalTeams[0]);
-
-      const b = createTeamElement(finalTeams[1], () => {
-        bracketData.champion = finalTeams[1];
-        renderChampion();
-      }, bracketData.champion === finalTeams[1]);
-
-      container.appendChild(a);
-      container.appendChild(b);
-    }
-
-    // Init
-    allTeams = Object.values(divisions).flat();
-    updateStage1UI();
-  </script>
+renderStage1();
+</script>
 </body>
 </html>
+
