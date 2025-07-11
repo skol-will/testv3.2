@@ -3,84 +3,54 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Fantasy Playoff Predictor</title>
+  <title>Fantasy Playoff Bracket</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background-color: #0e1111;
+      background: #0e1111;
       color: white;
+      font-family: Arial, sans-serif;
       padding: 20px;
-      max-width: 1000px;
-      margin: auto;
-    }
-    h1, h2 {
       text-align: center;
     }
-    .team-card {
-      background: #1f1f1f;
-      padding: 10px 15px;
-      margin: 5px;
-      border-radius: 6px;
-      cursor: pointer;
-      text-align: center;
-      font-weight: bold;
-    }
-    .team-card.selected {
-      background: #007bff;
-    }
-    .team-card.disabled {
-      opacity: 0.3;
-      pointer-events: none;
-    }
-    .section {
-      margin-bottom: 40px;
-    }
-    .division-group {
-      margin-bottom: 20px;
-    }
-    .team-grid {
-      display: flex;
-      flex-wrap: wrap;
-    }
-
     .bracket {
       display: flex;
       justify-content: space-around;
       flex-wrap: wrap;
+      margin-top: 40px;
     }
-
     .round {
       display: flex;
       flex-direction: column;
       align-items: center;
     }
-
     .matchup {
-      background: #1a1a1a;
+      background: #1c1c1c;
       margin: 10px;
       padding: 10px;
       border-radius: 6px;
       min-width: 140px;
     }
-
-    .matchup .team {
-      cursor: pointer;
+    .team {
       padding: 5px;
-      text-align: center;
+      margin: 5px 0;
+      background: #333;
+      cursor: pointer;
+      border-radius: 4px;
     }
-
-    .matchup .team.selected {
-      background-color: #007bff;
+    .team:hover {
+      background: #007bff;
     }
-
-    .matchup .team.disabled {
-      opacity: 0.3;
+    .selected {
+      background: #007bff !important;
+      color: white;
+    }
+    .disabled {
+      opacity: 0.4;
       pointer-events: none;
     }
-
-    #champion-display {
-      margin-top: 10px;
-      font-size: 20px;
+    #champion-name {
+      margin-top: 20px;
+      font-size: 24px;
       font-weight: bold;
       color: gold;
     }
@@ -88,225 +58,100 @@
 </head>
 <body>
 
-<h1>Fantasy Playoff Predictor</h1>
+<h1>Fantasy Playoff Bracket</h1>
 
-<div class="section" id="stage1">
-  <h2>Select Playoff Teams</h2>
-  <div id="divisions"></div>
-
-  <h3>Wildcard Picks (Choose 5)</h3>
-  <div class="team-grid" id="wildcards"></div>
-
-  <button onclick="proceedToBracket()">Continue to Bracket</button>
-</div>
-
-<div class="section" id="stage2" style="display:none;">
-  <h2>Playoff Bracket</h2>
-  <div class="bracket">
-    <div class="round" id="quarterfinals"><h3>Quarterfinals</h3></div>
-    <div class="round" id="semifinals"><h3>Semifinals</h3></div>
-    <div class="round" id="final"><h3>Final</h3></div>
-    <div class="round" id="champion">
-      <h3>Champion</h3>
-      <div id="champion-display"></div>
-    </div>
+<div class="bracket">
+  <div class="round" id="quarterfinals">
+    <h2>Quarterfinals</h2>
+  </div>
+  <div class="round" id="semifinals">
+    <h2>Semifinals</h2>
+  </div>
+  <div class="round" id="final">
+    <h2>Final</h2>
+  </div>
+  <div class="round" id="champion">
+    <h2>Champion</h2>
+    <div id="champion-name">?</div>
   </div>
 </div>
 
 <script>
-const divisions = {
-  "World East": ["Australia Whites", "Italia Bulls", "Belarus Barbarians", "Singapore Smelters", "South Korea Deers", "Poland Panthers"],
-  "World Central": ["Germany Cavaliers", "UK 3 Lions", "Finland Frigates", "Belgium Bulldogs", "Holland Hornets", "South Africa Silverbacks"],
-  "World West": ["USA Drones", "Jamaica Thunder", "Rwanda Raiders", "Egypt Pharaohs", "Peru Piranhas", "Brazil Hummingbirds"]
-};
+const teams = [
+  "Team A", "Team B", "Team C", "Team D",
+  "Team E", "Team F", "Team G", "Team H"
+];
 
-const selectedDivisionWinners = {};
-const selectedWildcards = new Set();
+const qfWinners = [];
+const sfWinners = [];
 
-function createTeamCard(team, container, clickHandler) {
-  const div = document.createElement("div");
-  div.className = "team-card";
-  div.innerText = team;
-  div.onclick = () => clickHandler(team, div);
-  container.appendChild(div);
-  return div;
+function createMatchup(containerId, team1, team2, onSelect) {
+  const matchup = document.createElement("div");
+  matchup.className = "matchup";
+
+  const teamEl1 = document.createElement("div");
+  teamEl1.className = "team";
+  teamEl1.textContent = team1;
+
+  const teamEl2 = document.createElement("div");
+  teamEl2.className = "team";
+  teamEl2.textContent = team2;
+
+  teamEl1.onclick = () => {
+    teamEl1.classList.add("selected");
+    teamEl2.classList.add("disabled");
+    onSelect(team1);
+  };
+
+  teamEl2.onclick = () => {
+    teamEl2.classList.add("selected");
+    teamEl1.classList.add("disabled");
+    onSelect(team2);
+  };
+
+  matchup.appendChild(teamEl1);
+  matchup.appendChild(teamEl2);
+  document.getElementById(containerId).appendChild(matchup);
 }
 
-function renderStage1() {
-  const divWrapper = document.getElementById("divisions");
-  divWrapper.innerHTML = "";
-
-  Object.entries(divisions).forEach(([divisionName, teams]) => {
-    const groupDiv = document.createElement("div");
-    groupDiv.className = "division-group";
-    const header = document.createElement("h3");
-    header.innerText = divisionName;
-    groupDiv.appendChild(header);
-
-    const teamGrid = document.createElement("div");
-    teamGrid.className = "team-grid";
-
-    teams.forEach(team => {
-      const card = createTeamCard(team, teamGrid, (t, el) => {
-        selectedDivisionWinners[divisionName] = t;
-        Array.from(teamGrid.children).forEach(c => {
-          c.classList.remove("selected");
-          c.classList.remove("disabled");
-        });
-        el.classList.add("selected");
-        renderWildcards();
-      });
-    });
-
-    groupDiv.appendChild(teamGrid);
-    divWrapper.appendChild(groupDiv);
-  });
-
-  renderWildcards();
-}
-
-function renderWildcards() {
-  const wcGrid = document.getElementById("wildcards");
-  wcGrid.innerHTML = "";
-  selectedWildcards.clear();
-
-  const chosenDivWinners = Object.values(selectedDivisionWinners);
-  const allTeams = Object.values(divisions).flat();
-
-  allTeams.forEach(team => {
-    if (chosenDivWinners.includes(team)) return;
-
-    const card = createTeamCard(team, wcGrid, (t, el) => {
-      if (selectedWildcards.has(t)) {
-        selectedWildcards.delete(t);
-        el.classList.remove("selected");
-      } else if (selectedWildcards.size < 5) {
-        selectedWildcards.add(t);
-        el.classList.add("selected");
+function initBracket() {
+  for (let i = 0; i < teams.length; i += 2) {
+    createMatchup("quarterfinals", teams[i], teams[i+1], winner => {
+      qfWinners.push(winner);
+      if (qfWinners.length % 2 === 0) {
+        updateSemifinals();
       }
     });
+  }
+}
+
+function updateSemifinals() {
+  const sfContainer = document.getElementById("semifinals");
+  sfContainer.innerHTML = "<h2>Semifinals</h2>";
+  sfWinners.length = 0;
+
+  for (let i = 0; i < qfWinners.length; i += 2) {
+    createMatchup("semifinals", qfWinners[i], qfWinners[i+1], winner => {
+      sfWinners.push(winner);
+      if (sfWinners.length % 2 === 0) {
+        updateFinal();
+      }
+    });
+  }
+}
+
+function updateFinal() {
+  const finalContainer = document.getElementById("final");
+  finalContainer.innerHTML = "<h2>Final</h2>";
+
+  createMatchup("final", sfWinners[0], sfWinners[1], winner => {
+    document.getElementById("champion-name").textContent = winner;
   });
 }
 
-function proceedToBracket() {
-  if (Object.keys(selectedDivisionWinners).length !== 3 || selectedWildcards.size !== 5) {
-    alert("Please select 3 division winners and 5 wildcards.");
-    return;
-  }
-
-  document.getElementById("stage1").style.display = "none";
-  document.getElementById("stage2").style.display = "block";
-
-  const allTeams = [...Object.values(selectedDivisionWinners), ...selectedWildcards];
-  createBracket(allTeams);
-}
-
-function createBracket(teams) {
-  const qf = document.getElementById("quarterfinals");
-  const sf = document.getElementById("semifinals");
-  const f = document.getElementById("final");
-  const champ = document.getElementById("champion-display");
-
-  qf.innerHTML = "<h3>Quarterfinals</h3>";
-  sf.innerHTML = "<h3>Semifinals</h3>";
-  f.innerHTML = "<h3>Final</h3>";
-  champ.innerHTML = "";
-
-  const quarterWinners = [];
-
-  for (let i = 0; i < teams.length; i += 2) {
-    const matchup = document.createElement("div");
-    matchup.className = "matchup";
-
-    const teamA = createBracketTeam(teams[i], () => handleQuarterfinalWin(teams[i], matchup));
-    const teamB = createBracketTeam(teams[i+1], () => handleQuarterfinalWin(teams[i+1], matchup));
-
-    matchup.appendChild(teamA);
-    matchup.appendChild(teamB);
-    qf.appendChild(matchup);
-  }
-
-  function handleQuarterfinalWin(winner, matchupDiv) {
-    Array.from(matchupDiv.children).forEach(c => {
-      c.classList.remove("selected");
-      c.classList.add("disabled");
-    });
-
-    const winnerDiv = [...matchupDiv.children].find(div => div.textContent === winner);
-    winnerDiv.classList.add("selected");
-    winnerDiv.classList.remove("disabled");
-
-    if (!quarterWinners.includes(winner)) quarterWinners.push(winner);
-    if (quarterWinners.length % 2 === 0) updateSemifinals();
-  }
-
-  function updateSemifinals() {
-    sf.innerHTML = "<h3>Semifinals</h3>";
-    const semiWinners = [];
-
-    for (let i = 0; i < quarterWinners.length; i += 2) {
-      const matchup = document.createElement("div");
-      matchup.className = "matchup";
-
-      const teamA = createBracketTeam(quarterWinners[i], () => handleSemifinalWin(quarterWinners[i], matchup));
-      const teamB = createBracketTeam(quarterWinners[i+1], () => handleSemifinalWin(quarterWinners[i+1], matchup));
-
-      matchup.appendChild(teamA);
-      matchup.appendChild(teamB);
-      sf.appendChild(matchup);
-    }
-
-    function handleSemifinalWin(winner, matchupDiv) {
-      Array.from(matchupDiv.children).forEach(c => {
-        c.classList.remove("selected");
-        c.classList.add("disabled");
-      });
-
-      const winnerDiv = [...matchupDiv.children].find(div => div.textContent === winner);
-      winnerDiv.classList.add("selected");
-      winnerDiv.classList.remove("disabled");
-
-      if (!semiWinners.includes(winner)) semiWinners.push(winner);
-      if (semiWinners.length % 2 === 0) updateFinal(semiWinners);
-    }
-
-    function updateFinal(semiWinners) {
-      f.innerHTML = "<h3>Final</h3>";
-      const finalMatchup = document.createElement("div");
-      finalMatchup.className = "matchup";
-
-      const teamA = createBracketTeam(semiWinners[0], () => handleFinalWin(semiWinners[0], finalMatchup));
-      const teamB = createBracketTeam(semiWinners[1], () => handleFinalWin(semiWinners[1], finalMatchup));
-
-      finalMatchup.appendChild(teamA);
-      finalMatchup.appendChild(teamB);
-      f.appendChild(finalMatchup);
-    }
-
-    function handleFinalWin(winner, matchupDiv) {
-      Array.from(matchupDiv.children).forEach(c => {
-        c.classList.remove("selected");
-        c.classList.add("disabled");
-      });
-
-      const winnerDiv = [...matchupDiv.children].find(div => div.textContent === winner);
-      winnerDiv.classList.add("selected");
-      winnerDiv.classList.remove("disabled");
-
-      champ.textContent = winner;
-    }
-  }
-}
-
-function createBracketTeam(name, clickHandler) {
-  const div = document.createElement("div");
-  div.className = "team";
-  div.innerText = name;
-  div.onclick = clickHandler;
-  return div;
-}
-
-renderStage1();
+initBracket();
 </script>
+
 </body>
 </html>
+
