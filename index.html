@@ -3,55 +3,39 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Fantasy Bracket</title>
+  <title>Fantasy Playoff Predictor</title>
   <style>
     body {
       font-family: Arial, sans-serif;
       background: #121212;
       color: white;
-      margin: 0;
       padding: 1rem;
+      margin: 0;
     }
 
-    h1 {
+    h1, h2, h3 {
       text-align: center;
     }
 
-    .bracket {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 1rem;
-      max-width: 1000px;
-      margin: auto;
-      padding-top: 2rem;
+    .section {
+      margin-bottom: 2rem;
     }
 
-    .round {
+    .team-grid {
       display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-
-    .round h3 {
-      text-align: center;
-      margin-bottom: 1rem;
-    }
-
-    .matchup {
-      background: #1f1f1f;
-      border: 2px solid #333;
-      border-radius: 8px;
-      padding: 0.5rem;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      justify-content: center;
+      margin-top: 0.5rem;
     }
 
     .team {
-      padding: 0.5rem;
-      text-align: center;
-      cursor: pointer;
-      border-radius: 4px;
-      margin: 0.2rem 0;
       background: #2a2a2a;
-      transition: 0.2s ease;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: 0.2s;
+      user-select: none;
     }
 
     .team:hover {
@@ -66,6 +50,44 @@
     .team.disabled {
       opacity: 0.4;
       pointer-events: none;
+    }
+
+    button {
+      display: block;
+      margin: 1rem auto;
+      padding: 0.75rem 1.5rem;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    .bracket {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      max-width: 1000px;
+      margin: auto;
+    }
+
+    .round {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .matchup {
+      background: #1f1f1f;
+      border: 2px solid #333;
+      border-radius: 8px;
+      padding: 0.5rem;
+    }
+
+    .matchup .team {
+      margin: 0.2rem 0;
+      text-align: center;
     }
 
     .champion-display {
@@ -86,45 +108,123 @@
 </head>
 <body>
 
-<h1>Fantasy Playoff Bracket</h1>
+<h1>Fantasy Playoff Predictor</h1>
 
-<div class="bracket">
-  <div class="round" id="quarterfinals">
-    <h3>Quarterfinals</h3>
-  </div>
-  <div class="round" id="semifinals">
-    <h3>Semifinals</h3>
-  </div>
-  <div class="round" id="final">
-    <h3>Final</h3>
-  </div>
-  <div class="round" id="champion">
-    <h3>Champion</h3>
-    <div class="champion-display" id="championDisplay"></div>
+<div class="section" id="stage1">
+  <h2>Select 3 Division Winners</h2>
+  <div id="divisions"></div>
+  <h2>Select 5 Wildcard Teams</h2>
+  <div class="team-grid" id="wildcards"></div>
+  <button id="toStage2">Continue to Bracket</button>
+</div>
+
+<div class="section" id="stage2" style="display:none;">
+  <h2>Playoff Bracket</h2>
+  <div class="bracket">
+    <div class="round" id="quarterfinals"><h3>Quarterfinals</h3></div>
+    <div class="round" id="semifinals"><h3>Semifinals</h3></div>
+    <div class="round" id="final"><h3>Final</h3></div>
+    <div class="round" id="champion">
+      <h3>Champion</h3>
+      <div class="champion-display" id="championDisplay"></div>
+    </div>
   </div>
 </div>
 
 <script>
-  const quarterMatchups = [
-    ["Australia Whites", "Italia Bulls"],
-    ["UK 3 Lions", "USA Drones"],
-    ["Jamaica Thunder", "Singapore Smelters"],
-    ["Brazil Hummingbirds", "South Korea Deers"]
-  ];
+  const divisions = {
+    "World East": ["Australia Whites", "Italia Bulls", "Belarus Barbarians", "Singapore Smelters", "South Korea Deers", "Poland Panthers"],
+    "World Central": ["Germany Cavaliers", "UK 3 Lions", "Finland Frigates", "Belgium Bulldogs", "Holland Hornets", "South Africa Silverbacks"],
+    "World West": ["USA Drones", "Jamaica Thunder", "Rwanda Raiders", "Egypt Pharaohs", "Peru Piranhas", "Brazil Hummingbirds"]
+  };
 
+  const selectedDivisionWinners = {};
+  const selectedWildcards = new Set();
+  const usedTeams = new Set();
+
+  const divisionsContainer = document.getElementById("divisions");
+  const wildcardContainer = document.getElementById("wildcards");
+
+  function createTeam(name, onClick, isDisabled = false) {
+    const div = document.createElement("div");
+    div.className = "team";
+    div.textContent = name;
+    if (isDisabled) div.classList.add("disabled");
+    div.addEventListener("click", () => onClick(div, name));
+    return div;
+  }
+
+  function renderDivisionPickers() {
+    divisionsContainer.innerHTML = "";
+    Object.entries(divisions).forEach(([division, teams]) => {
+      const wrapper = document.createElement("div");
+      wrapper.innerHTML = `<h3>${division}</h3>`;
+      const grid = document.createElement("div");
+      grid.className = "team-grid";
+
+      teams.forEach(team => {
+        const teamDiv = createTeam(team, (el, name) => {
+          // Clear previous pick for this division
+          [...grid.children].forEach(child => child.classList.remove("selected"));
+          el.classList.add("selected");
+          selectedDivisionWinners[division] = name;
+          updateWildcardList();
+        }, usedTeams.has(team));
+
+        if (selectedDivisionWinners[division] === team) {
+          teamDiv.classList.add("selected");
+        }
+
+        grid.appendChild(teamDiv);
+      });
+
+      wrapper.appendChild(grid);
+      divisionsContainer.appendChild(wrapper);
+    });
+  }
+
+  function updateWildcardList() {
+    usedTeams.clear();
+    Object.values(selectedDivisionWinners).forEach(team => usedTeams.add(team));
+
+    wildcardContainer.innerHTML = "";
+    Object.entries(divisions).forEach(([division, teams]) => {
+      teams.forEach(team => {
+        if (!usedTeams.has(team)) {
+          const teamDiv = createTeam(team, (el, name) => {
+            if (selectedWildcards.has(name)) {
+              selectedWildcards.delete(name);
+              el.classList.remove("selected");
+            } else if (selectedWildcards.size < 5) {
+              selectedWildcards.add(name);
+              el.classList.add("selected");
+            }
+          });
+          if (selectedWildcards.has(team)) teamDiv.classList.add("selected");
+          wildcardContainer.appendChild(teamDiv);
+        }
+      });
+    });
+  }
+
+  document.getElementById("toStage2").addEventListener("click", () => {
+    if (Object.keys(selectedDivisionWinners).length !== 3 || selectedWildcards.size !== 5) {
+      alert("Please select 3 division winners and 5 wildcards.");
+      return;
+    }
+
+    const playoffTeams = [...Object.values(selectedDivisionWinners), ...selectedWildcards];
+    startBracket(playoffTeams);
+    document.getElementById("stage1").style.display = "none";
+    document.getElementById("stage2").style.display = "block";
+  });
+
+  // BRACKET SYSTEM
   const state = {
     semifinals: [],
     final: [],
     champion: null
   };
-
-  function createTeamElement(name, onClick) {
-    const div = document.createElement("div");
-    div.className = "team";
-    div.textContent = name;
-    div.addEventListener("click", () => onClick(div, name));
-    return div;
-  }
 
   function renderMatchups(containerId, matchups, nextStage, nextContainerId) {
     const container = document.getElementById(containerId);
@@ -135,7 +235,7 @@
       matchupBox.className = "matchup";
 
       pair.forEach((teamName, i) => {
-        const teamDiv = createTeamElement(teamName, (element, name) => {
+        const teamDiv = createTeam(teamName, (element, name) => {
           // Disable both options
           [...matchupBox.children].forEach(child => {
             child.classList.remove("selected");
@@ -147,22 +247,20 @@
 
           // Send to next stage
           if (!state[nextStage]) state[nextStage] = [];
-          state[nextStage].push(name);
+          state[nextStage][index] = name;
 
-          if (state[nextStage].length % 2 === 0 || nextStage === "champion") {
-            const nextMatchups = [];
+          // Build next round with available pairs
+          const availablePairs = [];
+          for (let i = 0; i < state[nextStage].length; i += 2) {
+            const a = state[nextStage][i];
+            const b = state[nextStage][i + 1];
+            if (a && b) availablePairs.push([a, b]);
+          }
 
-            for (let i = 0; i < state[nextStage].length; i += 2) {
-              const pair = [state[nextStage][i], state[nextStage][i+1]];
-              if (pair[1]) nextMatchups.push(pair);
-            }
-
-            if (nextStage === "champion") {
-              document.getElementById("championDisplay").textContent = name;
-            } else {
-              renderMatchups(nextContainerId, nextMatchups, nextStage === "semifinals" ? "final" : "champion", 
-                             nextStage === "semifinals" ? "final" : "champion");
-            }
+          if (nextStage === "champion") {
+            document.getElementById("championDisplay").textContent = name;
+          } else {
+            renderMatchups(nextContainerId, availablePairs, nextStage === "semifinals" ? "final" : "champion", nextStage === "semifinals" ? "final" : "champion");
           }
         });
 
@@ -173,8 +271,18 @@
     });
   }
 
-  renderMatchups("quarterfinals", quarterMatchups, "semifinals", "semifinals");
+  function startBracket(teams) {
+    const qMatchups = [];
+    for (let i = 0; i < teams.length; i += 2) {
+      qMatchups.push([teams[i], teams[i + 1]]);
+    }
+    renderMatchups("quarterfinals", qMatchups, "semifinals", "semifinals");
+  }
+
+  renderDivisionPickers();
+  updateWildcardList();
 </script>
 
 </body>
 </html>
+
